@@ -191,7 +191,7 @@ void MilliQPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent) {
   // xyAngleFromY is the azimuthal angle of the beam's x-y projection,
   // measured from +y toward +x.  The old geometry is recovered with
   // xyAngleFromY = 90*degree, which gives no y component to the pencil beam.
-  G4double xyAngleFromY = 60.0*degree;
+  G4double xyAngleFromY = 30.0*degree;
 
   const G4double sinTheta = sin(rotAngle);
   const G4double cosTheta = cos(rotAngle);
@@ -205,8 +205,8 @@ void MilliQPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent) {
   G4ThreeVector planeYAxis(-cosPhi,           sinPhi,           0.0);
   G4ThreeVector planeZAxis( cosTheta*sinPhi,  cosTheta*cosPhi, -sinTheta);
 
-  G4double xOffsetBase = -75*cm - 232.23*cm;
-  G4double yOffsetBase = -175*cm;
+  G4double xOffsetBase = 25*cm - 232.23*cm;
+  G4double yOffsetBase = -325*cm;
   G4double zOffsetBase = -180*cm - 273.81*cm;
 
   G4ThreeVector planeCenter(xOffsetBase, yOffsetBase, zOffsetBase);
@@ -322,7 +322,6 @@ void MilliQPrimaryGeneratorAction::GetLHEFourVectors() {
     iss.str(line);
 
     if (!(iss >> fq >> fm >> fx >> fy >> fz >> fpx >> fpy >> fpz >> fw))
-//    if (!(iss >> evt >> pid >> fq >> fm >> fx >> fy >> fz >> fpx >> fpy >> fpz >> fw))
       break;
   
 //pencil beam
