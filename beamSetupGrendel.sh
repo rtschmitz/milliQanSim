@@ -1,6 +1,8 @@
 #!/bin/bash
 #create local build of sim, configured to generate cosmic muons
-cp inputData/config/particlesMu.ini inputData/config/particles.ini
+
+new_path="$(pwd -P)/inputData/"
+sed -i.bak "s|^PathName[[:space:]]*=.*|PathName = ${new_path}|" "inputData/config/particles.ini"
 . buildsetup.sh
 cp MilliQan.cc.BeamGen MilliQan.cc
 cp CMakeLists.txt.default CMakeLists.txt
