@@ -33,12 +33,14 @@ public:
   void DrawAll();
   void PrintAll();
 
-  void SetR878_QE(G4PhysicsVector effVec){r878QE=effVec;}
-  void SetR7725_QE(G4PhysicsVector effVec){r7725QE=effVec;}
-  void SetET9814B_QE(G4PhysicsVector effVec){et9814bQE=effVec;}
-  G4PhysicsVector GetR878_QE(){return r878QE;}
-  G4PhysicsVector GetR7725_QE(){return r7725QE;}
-  G4PhysicsVector GetET9814B_QE(){return et9814bQE;}
+  void SetR878_QE(const G4PhysicsVector& effVec) { r878QE = effVec; }
+  void SetR7725_QE(const G4PhysicsVector& effVec) { r7725QE = effVec; }
+  void SetET9814B_QE(const G4PhysicsVector& effVec) { et9814bQE = effVec; }
+
+  const G4PhysicsVector& GetR878_QE() const { return r878QE; }
+  const G4PhysicsVector& GetR7725_QE() const { return r7725QE; }
+  const G4PhysicsVector& GetET9814B_QE() const { return et9814bQE; }
+
 
   //Initialize the arrays to store pmt positions
 //  inline void InitPMTs(G4int nPMTs){

@@ -16,7 +16,6 @@
 #include "G4UImanager.hh"
 #include "G4UIterminal.hh"
 #include "G4UItcsh.hh"
-#include "G4UIExecutive.hh"
 #include "Randomize.hh"
 
 
@@ -33,103 +32,108 @@
 #endif
 
 int main(int argc, char** argv) {
-    boost::property_tree::ptree pt;
-    boost::property_tree::ptree particlePTree;
-    G4UIExecutive *uiExec;
-    if (argc == 1 || argc <= 3) {
-    uiExec = new G4UIExecutive(argc, argv);
-    }
 
-    // Default configuration file
-    std::string configFile = "config/onepc.ini";
+  	boost::property_tree::ptree pt;
+        boost::property_tree::ptree particlePTree;
 
-    // Handle arguments
-    if (argc > 1) {
-        configFile = argv[1];
-        G4cout << "MilliQan> Using configuration file: " << configFile << G4endl;
-    } else {
-        G4cout << "MilliQan> Using default configuration file: " << configFile << G4endl;
-    }
 
-    // Load the main configuration file
-    try {
-        boost::property_tree::ini_parser::read_ini(configFile, pt);
-    } catch (boost::property_tree::ptree_error& e) {
-        G4ExceptionDescription msg;
-        msg << G4endl << "Configuration file error: " << e.what() << G4endl;
-        G4Exception("MilliQan::main()", "MilliQan::ConfigFileReadError", FatalException, msg);
-    }
+	//declare configFile
+	std::string configFile;
 
-    // Load the particle configuration file
-    try {
-        boost::property_tree::ini_parser::read_ini(pt.get<std::string>("Configuration.ParticleConfigFile"), particlePTree);
-    } catch (boost::property_tree::ptree_error& e) {
-        G4ExceptionDescription msg;
-        msg << G4endl << "Particle configuration file error: " << e.what() << G4endl;
-        G4Exception("MilliQan::main()", "MilliQan::ConfigFileReadError", FatalException, msg);
-    }
+	//check argv[2] for config number
+	//if not specified, use default	
+	if(argc == 3) {
+		//convert argv[2] to string
+		std::string configNumber = argv[2];
+		configFile = "config/onepc" + configNumber + ".ini";
+	}
+	else {
+		configFile = "config/onepc.ini";
+	}
 
-    // Retrieve particle properties
-    G4int jobNumber = particlePTree.get<G4int>("ParticleProperties.JobNumber");
-    G4int eventsPerJob = particlePTree.get<G4int>("ParticleProperties.EventsPerJob");
-    G4double eventWeight = particlePTree.get<G4double>("ParticleProperties.EventWeight");
-    G4int processID = particlePTree.get<G4int>("ParticleProperties.ProcessID");
+	  try {
+	    boost::property_tree::ini_parser::read_ini(configFile, pt); // std::string, ptree
+	  }
+	  catch(boost::property_tree::ptree_error &e) {
+	    G4ExceptionDescription msg;
+	    msg << G4endl << "Configuration file " << e.what() << G4endl;
+	    G4Exception("MilliQan::main()", "MilliQan::ConfigFileReadError", FatalException, msg);
+	  }
 
-    G4int eventOffset = jobNumber * eventsPerJob;
+	  try {
+	    boost::property_tree::ini_parser::read_ini(pt.get<std::string>("Configuration.ParticleConfigFile"), particlePTree);
+	  }
+	  catch(boost::property_tree::ptree_error &e) {
+	    G4ExceptionDescription msg;
+	    msg << G4endl << "Configuration file " << e.what() << G4endl;
+	    G4Exception("MilliQan::main()", "MilliQan::ConfigFileReadError", FatalException, msg);
+  	  }
 
-    // Initialize the randomizer for primary particles
-    CLHEP::RanluxEngine defaultEngine(1234567, 4);
-    G4Random::setTheEngine(&defaultEngine);
+	G4int jobNumber = particlePTree.get<G4int>("ParticleProperties.JobNumber");
+	G4int eventsPerJob = particlePTree.get<G4int>("ParticleProperties.EventsPerJob");
+	G4double eventWeight = particlePTree.get<G4double>("ParticleProperties.EventWeight");
+	G4int processID = particlePTree.get<G4int>("ParticleProperties.ProcessID");
 
-    // Set verbose output class
-    G4VSteppingVerbose* verbosity = new mqSteppingVerbose;
-    G4VSteppingVerbose::SetInstance(verbosity);
 
-    // Initialize the Run Manager
-    G4RunManager* runManager = new G4RunManager;
+	G4int eventOffset = jobNumber*eventsPerJob;
+	
+	/*Randomizer for primary particle--------------------------------------*/
+	//CLHEP::HepRandom::setTheEngine(new CLHEP::RanecuEngine);
+	CLHEP::RanluxEngine defaultEngine( 1234567, 4 );
+	G4Random::setTheEngine( &defaultEngine );
+	/*User Verbose output class--------------------------------------------*/
+	G4VSteppingVerbose* verbosity = new mqSteppingVerbose;
+	G4VSteppingVerbose::SetInstance(verbosity);
 
-    // Set User Initialization classes
-    mqDetectorConstruction* detector = new mqDetectorConstruction;
-    runManager->SetUserInitialization(detector);
-    runManager->SetUserInitialization(new mqShieldingList(0, "HP", pt));
+	/*Run manager----------------------------------------------------------*/
+	G4RunManager* runManager = new G4RunManager;
 
-    // Visualization
+	/*User Initialization classes (mandatory)------------------------------*/
+	mqDetectorConstruction* detector = new mqDetectorConstruction;
+
+	runManager->SetUserInitialization(detector);
+
+	/*User Physics List----------------------------------------------------*/
+
+	//runManager->SetUserInitialization(new MilliQPhysicsList(pt));
+	runManager->SetUserInitialization(new mqShieldingList(0, "HP", pt));
+//	runManager->SetUserInitialization(new mqShieldingList(0, "HP", pt));
+	
+	/*Visualization, if you choose to have it!-----------------------------*/
 #ifdef G4VIS_USE
-    G4VisManager* visManager = new G4VisExecutive;
-    visManager->Initialize();
+
+	G4VisManager* visManager = new G4VisExecutive;
+	visManager->Initialize();
 #endif
 
-    // Set Analysis Manager
-    mqHistoManager* histo = new mqHistoManager();
+	/*Analysis manager-----------------------------------------------------*/
+	//mqOutputFile      *outputFile      = new mqOutputFile();
 
-    // Set User Action classes
-    runManager->SetUserAction(new mqRunAction(histo));
-    runManager->SetUserAction(new mqEventAction(histo, eventOffset, eventWeight, processID));
-    runManager->SetUserAction(new mqSteppingAction(histo));
-    runManager->SetUserAction(new MilliQPrimaryGeneratorAction(pt, eventOffset));
-    runManager->SetUserAction(new mqTrackingAction(histo));
-    runManager->SetUserAction(new mqStackingAction);
+	//RecorderBase* recorder = NULL;//No recording is done in this example
 
-    // Get the UI manager
-    G4UImanager* UI = G4UImanager::GetUIpointer();
-    mqSession* LoggedSession = new mqSession();
-    UI->SetCoutDestination(LoggedSession);
+	// set an HistoManager
+	//
+	mqHistoManager*  histo = new mqHistoManager();
 
-    // Handle different execution modes based on arguments
-    /*
-if (argc == 1) {
-    // Error: No arguments provided
-    G4ExceptionDescription msg;
-    msg << "No configuration or macro file specified. Usage:" << G4endl;
-    msg << "./MilliQan [configFile] [macroFile]" << G4endl;
-    G4Exception("MilliQan::main()", "MilliQan::InvalidArgumentCount", FatalException, msg);
-} else if (argc == 2) {
-    // Configuration file provided, but no macro file
-    G4cout << "MilliQan> Configuration file specified: " << argv[1] << G4endl;
-    G4cout << "No macro file specified. Exiting." << G4endl;
-    return 0;
-    */
-if (argc == 1) {
+	/*User Action classes--------------------------------------------------*/
+	runManager->SetUserAction(new mqRunAction(histo));
+	runManager->SetUserAction(new mqEventAction(histo,eventOffset,eventWeight,processID));
+	runManager->SetUserAction(new mqSteppingAction(histo));
+	
+	//CHANGE HERE to switch between no fourvectors and /gps/ (mqPrimGen) and loading in fourvectors and /gun/ (MilliQPrimaryGen)
+     runManager->SetUserAction(new mqPrimaryGeneratorAction(detector));
+   //runManager->SetUserAction(new MilliQPrimaryGeneratorAction(pt,eventOffset));
+	
+	runManager->SetUserAction(new mqTrackingAction(histo));
+	runManager->SetUserAction(new mqStackingAction);
+	/*Initialize G4 kernel-------------------------------------------------*/
+	//runManager->Initialize(); //HERE
+
+	/*Get the pointer to the User Interface manager------------------------*/
+	G4UImanager * UI = G4UImanager::GetUIpointer();
+	mqSession * LoggedSession = new mqSession();
+	UI->SetCoutDestination(LoggedSession);
+	if (argc == 1) {
 		G4cout << "MilliQan> Enter interactive mode." << G4endl;
 		// Define (G)UI terminal for interactive mode
 		// G4UIterminal is a (dumb) terminal
@@ -142,43 +146,33 @@ if (argc == 1) {
 		// 		UI->ApplyCommand("/control/execute run25.mac");
 		session->SessionStart();
 		delete session;
-} else if (argc <= 3) {
-    // Configuration file and macro file provided
-    G4cout << "MilliQan> Using configuration file: " << argv[1] << G4endl;
-    G4cout << "MilliQan> Running macro file: " << argv[2] << G4endl;
+	}
+	//Full batch mode
+	else if (argc <= 3) {
+		G4cout << "MilliQan> Enter full batch mode" << G4endl;
+		//Full batch mode
+		G4String command = "/control/execute ";
+		G4String fileName = argv[1];
+		G4cout << "apply mac file " << command + fileName << G4endl;
+		UI->ApplyCommand(command + fileName);
+	}
+	else {
+		G4cout << "MilliQan> ERROR: Too many arguments." << G4endl;
+	}
 
-    // Execute the macro file
-    G4String command = "/control/execute ";
-    G4String macroFile = argv[2];
-    UI->ApplyCommand(command + macroFile);
-    G4UIExecutive* uiExec = new G4UIExecutive(argc, argv);
-    //LoggedSession->SessionStart();
-    uiExec->SessionStart();
+	/*Free the store-------------------------------------------------------*/
+	//user actions, physics_list and detector_description are
+	//owned and deleted by the run manager, so they should not
+	//be deleted in the main() program !
 
-    //G4UIExecutive* uiExec = new G4UIExecutive(argc, argv);
-    uiExec->SessionStart();
-    delete uiExec;
-
-    G4cout << "MilliQan> Simulation complete. Exiting." << G4endl;
-    //return 0;
-} else {
-    // Invalid number of arguments
-    G4ExceptionDescription msg;
-    msg << "Invalid number of arguments. Usage:" << G4endl;
-    msg << "./MilliQan [configFile] [macroFile]" << G4endl;
-    G4Exception("MilliQan::main()", "MilliQan::InvalidArgumentCount", FatalException, msg);
-}
-
-
-
-    // Cleanup
 #ifdef G4VIS_USE
-    delete visManager;
+	delete visManager;
 #endif
-    delete runManager;
-    delete verbosity;
-    delete LoggedSession;
-    delete histo;
 
-    return 0;
+	delete runManager;
+	delete verbosity;
+	delete LoggedSession;
+	delete histo;
+	//delete outputFile;
+	return 0;
 }
