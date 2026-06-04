@@ -183,34 +183,10 @@ void MilliQPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent) {
 ///*
   G4double downOffset = -19*cm;
   G4double sideOffset = 0*m;
-
-  // rotAngle is the polar angle between the beam direction and the +z axis.
   G4double rotAngle = 43.1*degree;
-  //G4double rotAngle = 43.1*degree;
-
-  // xyAngleFromY is the azimuthal angle of the beam's x-y projection,
-  // measured from +y toward +x.  The old geometry is recovered with
-  // xyAngleFromY = 90*degree, which gives no y component to the pencil beam.
-  G4double xyAngleFromY = 60.0*degree;
-
-  const G4double sinTheta = sin(rotAngle);
-  const G4double cosTheta = cos(rotAngle);
-  const G4double sinPhi   = sin(xyAngleFromY);
-  const G4double cosPhi   = cos(xyAngleFromY);
-
-  // Local source-plane basis in global coordinates.
-  // beamAxis is the local +x / nominal momentum axis.
-  // planeYAxis and planeZAxis span the firing plane and are orthogonal to beamAxis.
-  G4ThreeVector beamAxis(   sinTheta*sinPhi,  sinTheta*cosPhi,  cosTheta);
-  G4ThreeVector planeYAxis(-cosPhi,           sinPhi,           0.0);
-  G4ThreeVector planeZAxis( cosTheta*sinPhi,  cosTheta*cosPhi, -sinTheta);
-
-  G4double xOffsetBase = -75*cm - 232.23*cm;
-  G4double yOffsetBase = -175*cm;
-  G4double zOffsetBase = -180*cm - 273.81*cm;
-
-  G4ThreeVector planeCenter(xOffsetBase, yOffsetBase, zOffsetBase);
-  planeCenter += planeZAxis*(-downOffset) + planeYAxis*sideOffset; //6cm higher to account for offset of center of detector
+  G4double xOffset = -100*cm-232.23*cm-downOffset*cos(rotAngle); //6cm higher to account for offset of center of detector
+  G4double yOffset = 0*cm+sideOffset;
+  G4double zOffset = -180*cm-273.81*cm+downOffset*sin(rotAngle);
 //*/
 //*/
 // mCP trajectory generation
@@ -220,17 +196,11 @@ void MilliQPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent) {
   G4double zOffset = -200*cm; //185
   G4double rotAngle = 0*degree;
 */
-  G4ThreeVector momentumDirection(
-      (xMo*beamAxis.x() + yMo*planeYAxis.x() + zMo*planeZAxis.x()) / MoNorm,
-      (xMo*beamAxis.y() + yMo*planeYAxis.y() + zMo*planeZAxis.y()) / MoNorm,
-      (xMo*beamAxis.z() + yMo*planeYAxis.z() + zMo*planeZAxis.z()) / MoNorm);
-
-  fParticleGun->SetParticleMomentumDirection(momentumDirection);
+  fParticleGun->SetParticleMomentumDirection(	G4ThreeVector((zMo*cos(rotAngle) + xMo*sin(rotAngle)) / MoNorm, yMo / MoNorm, (xMo*cos(rotAngle) - zMo*sin(rotAngle)) / MoNorm));
   fParticleGun->SetParticleEnergy(En);
-
-  G4ThreeVector gunPosition = planeCenter + planeYAxis*y0 + planeZAxis*z0;
-  fParticleGun->SetParticlePosition(gunPosition); //to center the dist.
-  //fParticleGun->SetParticlePosition(planeCenter + beamAxis*x0 + planeYAxis*y0 + planeZAxis*z0); //includes local x spread if desired.
+  
+  fParticleGun->SetParticlePosition(G4ThreeVector(z0*cos(rotAngle)+xOffset, y0+yOffset, -z0*sin(rotAngle)+zOffset)); //to center the dist.
+  //fParticleGun->SetParticlePosition(G4ThreeVector(z0*cos(rotAngle)+x0*sin(rotAngle)+xOffset, y0+yOffset, x0*cos(rotAngle)-z0*sin(rotAngle)+zOffset)); //to center the dist.
   fParticleGun->GeneratePrimaryVertex(anEvent);
   fParticleGun->SetParticleDefinition(fgPrimaryParticle);
  //this gives errors, so for now just use the text file and read-in for root macros
